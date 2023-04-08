@@ -81,6 +81,8 @@ struct Matrix
         nrows--;
     }
 
+    bool empty() { return data.empty(); }
+
     void removeColumn(size_t index)
     {
         auto begin = data.begin();
