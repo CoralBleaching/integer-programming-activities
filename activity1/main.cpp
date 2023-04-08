@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <set>
 #include <string>
 
 #include "matrix.hpp"
@@ -47,8 +48,8 @@ Matrix readFile(std::string filepath)
     return A;
 }
 
-template <typename T>
-std::ostream &operator<<(std::ostream &os, std::vector<T> vector)
+template <typename Pair>
+std::ostream &operator<<(std::ostream &os, std::vector<Pair> vector)
 {
     os << "{ ";
     for (auto &elem : vector)
@@ -87,20 +88,41 @@ std::pair<Step1Output, size_t> isUnitVector(Matrix::Row row)
     throw std::runtime_error("Unkown error: this step is unreachable.");
 }
 
-std::vector<size_t> preprocessingStep1(Matrix &A)
+void removeRestrictions(Matrix &A, std::vector<size_t> restrictions)
 {
-    std::vector<size_t> sets, variables;
+    std::sort(restrictions.begin(), restrictions.end());
+    size_t restrictionIndexOffset = 0;
+    for (const auto &restrictionIndex : restrictions)
+        A.removeRow(restrictionIndex - restrictionIndexOffset++);
+}
+
+void removeVariables(Matrix &A, std::vector<size_t> variablesToRemove, std::vector<size_t> &variablesToKeep)
+{
+    std::sort(variablesToRemove.begin(), variablesToRemove.end());
+    size_t variableIndexOffset = 0;
+    for (const auto &variableIndex : variablesToRemove)
+    {
+        A.removeColumn(variableIndex - variableIndexOffset);
+        variablesToKeep.erase(variablesToKeep.begin() + variableIndex - variableIndexOffset);
+        variableIndexOffset++;
+    }
+}
+
+std::vector<size_t> preprocessingStep1(Matrix &A, std::vector<size_t> &keptVariables)
+{
+    std::vector<size_t> restrictions, variables;
+
     for (size_t i = 0; i < A.nrows; i++)
     {
         try
         {
-            auto [isUnitVectorResult, variableIndex] = isUnitVector(A.row(i));
+            auto [isUnitVectorResult, j] = isUnitVector(A.row(i));
             switch (isUnitVectorResult)
             {
             case Step1Output::IsUnitary:
-                sets.push_back(i);
+                variables.push_back(j);
             case Step1Output::IsZero:
-                variables.push_back(variableIndex);
+                restrictions.push_back(i);
                 break;
             default:
                 break;
@@ -111,15 +133,78 @@ std::vector<size_t> preprocessingStep1(Matrix &A)
             throw err;
         }
     }
-    size_t setIndexOffset = 0;
-    for (const auto &setIndex : sets)
-    {
-        A.removeRow(setIndex - setIndexOffset++);
-    }
+
+    removeRestrictions(A, restrictions);
+    restrictions.clear();
+
+    for (size_t j : variables)
+        for (size_t i = 0; i < A.nrows; i++)
+            if (A[i][j] == 1)
+                restrictions.push_back(i);
+
+    removeRestrictions(A, restrictions);
+
+    removeVariables(A, variables, keptVariables);
+
     return variables;
 }
 
 /// Step 2
+
+template <typename Pair>
+struct valueGreater
+{
+    bool operator()(const Pair &a, const Pair &b) const
+    {
+        return a.second > b.second;
+    }
+};
+
+template <typename Container>
+bool isSecondSubsetOfFirst(Container a, Container b)
+{
+    for (auto itA = std::begin(a), itB = std::begin(b); itA != std::end(a); itA++, itB++)
+        if (*itB > *itA) // should be false everytime if b c A
+            return false;
+    return true;
+}
+
+auto preprocessingStep2(Matrix &A)
+{
+    using value_type = std::pair<size_t, int>;
+    std::multiset<value_type, valueGreater<value_type>> sums;
+    for (size_t i = 0; i < A.nrows; i++)
+    {
+        auto row_i = A.row(i);
+        auto sum = std::accumulate(row_i.begin(), row_i.end(), 0);
+        sums.emplace(std::make_pair(i, sum));
+    }
+
+    std::set<size_t> markedForRemoval;
+    for (auto i = sums.begin(); i != sums.end(); i++)
+    {
+        for (auto k = std::next(i); k != sums.end(); k++)
+        {
+            size_t row_i_index = i->first;
+            size_t row_k_index = k->first;
+            auto row_i = A.row(row_i_index);
+            auto row_k = A.row(row_k_index);
+            if (isSecondSubsetOfFirst(row_i, row_k))
+            {
+                std::cout << "row_" << row_k_index << " is subset of row_" << row_i_index << "!\n";
+                markedForRemoval.emplace(row_i_index);
+            }
+        }
+    }
+
+    removeRestrictions(A, std::vector<size_t>(markedForRemoval.begin(), markedForRemoval.end()));
+
+    return sums;
+}
+
+// Step 3
+
+// Main program
 
 int main()
 {
@@ -136,13 +221,27 @@ int main()
     }
     std::cout << A;
 
-    auto vars = preprocessingStep1(A);
-    std::cout << "vars = " << vars << "\n";
+    std::vector<size_t> variables(A.ncols);
+    std::iota(variables.begin(), variables.end(), 0);
+
+    auto vars = preprocessingStep1(A, variables);
+    std::cout << "removed vars = " << vars << "\nkept vars = " << variables << "\n";
     std::cout << A;
 
-    std::vector<int> newCol = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-    A.appendColumn(newCol);
+    A = readFile(cwd.string() + "/entrada.txt");
+    auto m = preprocessingStep2(A);
     std::cout << A;
+    for (auto mm : m)
+        std::cout << mm.first << ": " << mm.second << "\n";
+
+    // std::vector<int> newCol = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    // A.appendColumn(newCol);
+    // std::cout << A;
+
+    // A.removeColumn(6);
+    // std::cout << A << "\n"
+    //           << A.nrows << " "
+    //           << A.ncols << "\n";
 }
 
 /*

@@ -81,6 +81,17 @@ struct Matrix
         nrows--;
     }
 
+    void removeColumn(size_t index)
+    {
+        auto begin = data.begin();
+        size_t deletionOffset = 0;
+        for (size_t i = 0; i < nrows; i++)
+        {
+            data.erase(begin + index + i * ncols - deletionOffset++);
+        }
+        ncols--;
+    }
+
     int &at(size_t k)
     {
         if (k >= data.size())
