@@ -149,7 +149,7 @@ std::vector<size_t> preprocessingStep1(Matrix &A, std::vector<size_t> &keptVaria
     return variables;
 }
 
-/// Step 2
+/// Steps 2 and 3
 
 template <typename Pair>
 struct valueGreater
@@ -169,40 +169,56 @@ bool isSecondSubsetOfFirst(Container a, Container b)
     return true;
 }
 
-auto preprocessingStep2(Matrix &A)
+template <bool IsColumn>
+auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::vector<size_t> &, void *> keptVariables = nullptr)
 {
+    using LineType = std::conditional_t<IsColumn, Matrix::Column, Matrix::Row>;
     using value_type = std::pair<size_t, int>;
+
     std::multiset<value_type, valueGreater<value_type>> sums;
-    for (size_t i = 0; i < A.nrows; i++)
+    size_t nLines = IsColumn ? A.ncols : A.nrows;
+    for (size_t idx = 0; idx < nLines; idx++)
     {
-        auto row_i = A.row(i);
-        auto sum = std::accumulate(row_i.begin(), row_i.end(), 0);
-        sums.emplace(std::make_pair(i, sum));
+        LineType line_idx(A, idx);
+        auto sum = std::accumulate(line_idx.begin(), line_idx.end(), 0);
+        sums.emplace(std::make_pair(idx, sum));
     }
 
     std::set<size_t> markedForRemoval;
-    for (auto i = sums.begin(); i != sums.end(); i++)
+    for (auto k = sums.begin(); k != sums.end(); k++)
     {
-        for (auto k = std::next(i); k != sums.end(); k++)
+        for (auto l = std::next(k); l != sums.end(); l++)
         {
-            size_t row_i_index = i->first;
-            size_t row_k_index = k->first;
-            auto row_i = A.row(row_i_index);
-            auto row_k = A.row(row_k_index);
-            if (isSecondSubsetOfFirst(row_i, row_k))
+            size_t line_k_index = k->first;
+            size_t line_l_index = l->first;
+            LineType line_k(A, line_k_index);
+            LineType line_l(A, line_l_index);
+            if (isSecondSubsetOfFirst(line_k, line_l))
             {
-                std::cout << "row_" << row_k_index << " is subset of row_" << row_i_index << "!\n";
-                markedForRemoval.emplace(row_i_index);
+                markedForRemoval.emplace(
+                    IsColumn ? line_l_index : line_k_index);
             }
         }
     }
 
-    removeRestrictions(A, std::vector<size_t>(markedForRemoval.begin(), markedForRemoval.end()));
-
-    return sums;
+    if constexpr (IsColumn)
+    {
+        removeVariables(A, std::vector<size_t>(markedForRemoval.begin(), markedForRemoval.end()), keptVariables);
+        return markedForRemoval;
+    }
+    else
+        removeRestrictions(A, std::vector<size_t>(markedForRemoval.begin(), markedForRemoval.end()));
 }
 
-// Step 3
+auto preprocessingStep2(Matrix &A)
+{
+    preprocessingSubRoutine<false>(A);
+}
+
+auto preprocessingStep3(Matrix &A, std::vector<size_t> &keptVariables)
+{
+    return preprocessingSubRoutine<true>(A, keptVariables);
+}
 
 // Main program
 
@@ -229,45 +245,14 @@ int main()
     std::cout << A;
 
     A = readFile(cwd.string() + "/entrada.txt");
-    auto m = preprocessingStep2(A);
+    preprocessingStep2(A);
     std::cout << A;
-    for (auto mm : m)
-        std::cout << mm.first << ": " << mm.second << "\n";
 
-    // std::vector<int> newCol = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-    // A.appendColumn(newCol);
-    // std::cout << A;
-
-    // A.removeColumn(6);
-    // std::cout << A << "\n"
-    //           << A.nrows << " "
-    //           << A.ncols << "\n";
+    A = readFile(cwd.string() + "/entrada.txt");
+    variables.resize(A.ncols);
+    std::iota(variables.begin(), variables.end(), 0);
+    auto vars3 = preprocessingStep3(A, variables);
+    std::vector<size_t> vars3v(vars3.begin(), vars3.end());
+    std::cout << "removed vars = " << vars3v << "\nkept vars = " << variables << "\n";
+    std::cout << A;
 }
-
-/*
-    std::cout << A.nrows << "  " << A.ncols << "\n";
-    for (size_t i = 0; i < A.nrows; i++)
-    {
-        for (size_t j = 0; j < A.ncols; j++)
-        {
-            std::cout << A[i][j] << " ";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "\n";
-
-    for (size_t j = 0; j < A.ncols; j++)
-    {
-        auto col = A.col(j);
-        for (size_t i = 0; i < A.nrows; i++)
-        {
-            std::cout << col[i] << " ";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "\n";
-
-    auto col = A.col(6);
-    for (auto c : col) std::cout << c << " ";
-    std::cout << "\n";
-*/
