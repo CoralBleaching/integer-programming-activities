@@ -27,7 +27,7 @@ Matrix readFile(std::string filepath)
 
     if (!file.is_open())
     {
-        throw std::runtime_error("File not found.");
+        throw std::runtime_error("File not found. File path searched: " + filepath);
     }
 
     try
@@ -328,52 +328,24 @@ auto minimumSetCoverSolveGreedy(Matrix &A)
 
 int main()
 {
-    std::set<float> test;
-    fillRange(test, 10.f, 3.5f, 0.01f);
-    std::cout << test << "\n";
-    test.clear();
-    fillRange(test, 5);
-    std::cout << test << std::endl;
-
     auto cwd = std::filesystem::current_path();
     Matrix A;
     try
     {
         A = readFile(cwd.string() + "/entrada.txt");
+        // I don't agree with putting a print statement on the minimumSetCoverSolveGreedy function,
+        // thus I'll preprocess the matrix twince just in order to fulfill the printing requirements.
+        auto B = A;
+        auto [kept, removed, selected] = preprocess(A);
+        std::cout << "No. of variables remaining after preprocessing: " << kept.size()
+                  << "\nNo. of restrictions remaining after preprocessing: " << A.nrows;
+        auto sol = minimumSetCoverSolveGreedy(B);
+        std::cout << "\nFinal No. of selected variables: " << sol.size();
     }
-    catch (std::runtime_error &err)
+    catch (std::exception &err)
     {
-        std::cerr << err.what() << "\n";
+        std::cerr << err.what() << std::endl;
         return 1;
     }
-    std::cout << A;
-
-    std::set<size_t> variables;
-    fillRange(variables, A.ncols);
-
-    auto vars = preprocessingStep1(A, variables);
-    std::cout << "removed vars = " << vars << "\nkept vars = " << variables << "\n";
-    std::cout << A;
-
-    A = readFile(cwd.string() + "/entrada.txt");
-    preprocessingStep2(A);
-    std::cout << A;
-
-    A = readFile(cwd.string() + "/entrada.txt");
-    variables.clear();
-    fillRange(variables, A.ncols);
-    auto vars3 = preprocessingStep3(A, variables);
-    std::vector<size_t> vars3v(vars3.begin(), vars3.end());
-    std::cout << "removed vars = " << vars3v << "\nkept vars = " << variables << "\n";
-    std::cout << A;
-
-    A = readFile(cwd.string() + "/entrada.txt");
-    auto [kep, rem, sel] = preprocess(A);
-    std::cout << "removed vars = " << rem << "\nkept vars = " << kep << "\n"
-              << "selected vars = " << sel << "\n"
-              << A << std::endl;
-
-    A = readFile(cwd.string() + "/entrada.txt");
-    auto sol = minimumSetCoverSolveGreedy(A);
-    std::cout << sol.size() << ": " << sol << "\n";
+    return 0;
 }
