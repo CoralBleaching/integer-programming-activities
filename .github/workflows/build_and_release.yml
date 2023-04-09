@@ -1,0 +1,50 @@
+name: CMake Build and Upload
+
+on: [push]
+
+jobs:
+  build:
+    permissions: write-all
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      matrix:
+        config:
+        - {
+          artifact: "integer_programming_utils.tar.gz",
+          compression_method: "czfv",
+          name: "Windows Latest MSVC",
+          os: windows-latest,
+          platform: "windows"
+        }
+        - {
+        name: "Ubuntu Latest GCC",
+        os: ubuntu-latest,
+        platform: "ubuntu",
+        compression_method: "cJfv",
+        artifact: "integer_programming_utils.tar.xz"
+        }
+    
+    steps:
+    - uses: actions/checkout@v3.5.0
+
+    - name: Configure CMake ${{ matrix.config.platform }}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install/
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Install
+      run: cmake --install build --strip
+
+    - name: Pack release
+      working-directory: ${{github.workspace}}/install
+      run:
+        cmake -E tar ${{ matrix.config.compression_method }} ../${{ matrix.config.artifact }} .
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ matrix.config.os }}-${{ github.ref_name }}"
+        title: "${{ matrix.config.platform }} ${{ github.ref_name}}"
+        files: ./${{ matrix.config.artifact }}
