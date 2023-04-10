@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, set_up_github_actions ]
+
+jobs:
+  build-and-release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    #    cmake_generator: ["Visual Studio 17 2022", "Unix Makefiles"]
+        platform: ["windows", "ubuntu"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      #- name: Set up CMake ${{ matrix.cmake_generator }}
+      #  uses: jacobdufault/cmake-action@v1
+      #  with:
+      #    cmake_generator: ${{ matrix.cmake_generator }}
+          
+      - name: Build CMake
+        uses: ashutoshvarma/action-cmake-build@v1
+        with:
+          cc: clang
+          cxx: clang++
+          
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          name: release-${{ matrix.os }}-${{ matrix.platform }}
+          path: |
+            CMakeLists.txt
+            activity1/build/
+       #     project2/build/
+
+  release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@vv2.1.1
+        with:
+          name: release-*
+          path: ${{ github.workspace }}/release
+          
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1.0.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v0.1
+          release_name: Release v0.1
+          body: |
+            This is the first release of the project.
+          draft: false
+          prerelease: false
+          
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/release
+          asset_name: release-${{ matrix.os }}-${{ matrix.cmake_generator }}.zip
+          asset_content_type: application/zip
