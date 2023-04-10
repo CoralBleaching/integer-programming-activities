@@ -2,7 +2,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main, set_up_github_actions ]
+    branches: [ master, set_up_github_actions ]
 
 jobs:
   build-and-release:
@@ -22,10 +22,7 @@ jobs:
       #    cmake_generator: ${{ matrix.cmake_generator }}
           
       - name: Build CMake
-        uses: ashutoshvarma/action-cmake-build@v1
-        with:
-          cc: clang
-          cxx: clang++
+        uses: threeal/cmake-action@v1.1.0
           
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v3.1.2

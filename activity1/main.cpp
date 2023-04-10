@@ -122,23 +122,16 @@ std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
 
     for (size_t i = 0; i < A.nrows; i++)
     {
-        try
+        auto [isUnitVectorResult, j] = isUnitVector(A.row(i));
+        switch (isUnitVectorResult)
         {
-            auto [isUnitVectorResult, j] = isUnitVector(A.row(i));
-            switch (isUnitVectorResult)
-            {
-            case Step1Output::IsUnitary:
-                variables.emplace(j);
-            case Step1Output::IsZero:
-                restrictions.emplace(i);
-                break;
-            default:
-                break;
-            }
-        }
-        catch (std::runtime_error &err)
-        {
-            throw err;
+        case Step1Output::IsUnitary:
+            variables.emplace(j);
+        case Step1Output::IsZero:
+            restrictions.emplace(i);
+            break;
+        default:
+            break;
         }
     }
 
@@ -194,8 +187,8 @@ auto orderBySumDescending(Matrix &A)
     size_t nLines = IsColumn ? A.ncols : A.nrows;
     for (size_t idx = 0; idx < nLines; idx++)
     {
-        LineType line_idx(A, idx);
-        auto sum = std::accumulate(line_idx.begin(), line_idx.end(), 0);
+        LineType line(A, idx);
+        auto sum = std::accumulate(line.begin(), line.end(), 0);
         sums.emplace(std::make_pair(idx, sum));
     }
     return sums;
@@ -213,14 +206,12 @@ auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::set<si
     {
         for (auto l = std::next(k); l != sums.end(); l++)
         {
-            size_t line_k_index = k->first;
-            size_t line_l_index = l->first;
-            LineType line_k(A, line_k_index);
-            LineType line_l(A, line_l_index);
+            LineType line_k(A, k->first);
+            LineType line_l(A, l->first);
             if (isSecondSubsetOfFirst(line_k, line_l))
             {
                 markedForRemoval.emplace(
-                    IsColumn ? line_l_index : line_k_index);
+                    IsColumn ? l->first : k->first);
             }
         }
     }
@@ -334,12 +325,12 @@ int main()
     {
         A = readFile(cwd.string() + "/entrada.txt");
         // I don't agree with putting a print statement on the minimumSetCoverSolveGreedy function,
-        // thus I'll preprocess the matrix twince just in order to fulfill the printing requirements.
+        // thus I'll preprocess the matrix twice just in order to fulfill the printing requirements.
         auto B = A;
         auto [kept, removed, selected] = preprocess(A);
+        auto sol = minimumSetCoverSolveGreedy(B);
         std::cout << "No. of variables remaining after preprocessing: " << kept.size()
                   << "\nNo. of restrictions remaining after preprocessing: " << A.nrows;
-        auto sol = minimumSetCoverSolveGreedy(B);
         std::cout << "\nFinal No. of selected variables: " << sol.size();
     }
     catch (std::exception &err)
