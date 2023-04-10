@@ -1,67 +1,50 @@
-name: Build and Release
+name: CMake Build and Upload
 
-on:
-  push:
-    branches: [ master, set_up_github_actions ]
+on: [push]
 
 jobs:
-  build-and-release:
-    runs-on: ${{ matrix.os }}
+  build:
+    permissions: write-all
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
-    #    cmake_generator: ["Visual Studio 17 2022", "Unix Makefiles"]
-        platform: ["windows", "ubuntu"]
+        config:
+        - {
+          artifact: "integer_programming_utils.tar.gz",
+          compression_method: "czfv",
+          name: "Windows Latest MSVC",
+          os: windows-latest,
+          platform: "windows"
+        }
+        - {
+        name: "Ubuntu Latest GCC",
+        os: ubuntu-latest,
+        platform: "ubuntu",
+        compression_method: "cJfv",
+        artifact: "integer_programming_utils.tar.xz"
+        }
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - uses: actions/checkout@v3.5.0
 
-      #- name: Set up CMake ${{ matrix.cmake_generator }}
-      #  uses: jacobdufault/cmake-action@v1
-      #  with:
-      #    cmake_generator: ${{ matrix.cmake_generator }}
-          
-      - name: Build CMake
-        uses: threeal/cmake-action@v1.1.0
-          
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.1.2
-        with:
-          name: release-${{ matrix.os }}-${{ matrix.platform }}
-          path: |
-            CMakeLists.txt
-            activity1/build/
-       #     project2/build/
+    - name: Configure CMake ${{ matrix.config.platform }}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install/
 
-  release:
-    needs: build-and-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@vv2.1.1
-        with:
-          name: release-*
-          path: ${{ github.workspace }}/release
-          
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1.0.7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v0.1
-          release_name: Release v0.1
-          body: |
-            This is the first release of the project.
-          draft: false
-          prerelease: false
-          
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ github.workspace }}/release
-          asset_name: release-${{ matrix.os }}-${{ matrix.cmake_generator }}.zip
-          asset_content_type: application/zip
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Install
+      run: cmake --install build --strip
+
+    - name: Pack release
+      working-directory: ${{github.workspace}}/install
+      run:
+        cmake -E tar ${{ matrix.config.compression_method }} ../${{ matrix.config.artifact }} .
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ matrix.config.os }}-${{ github.ref_name }}"
+        title: "${{ matrix.config.platform }} ${{ github.ref_name}}"
+        files: ./${{ matrix.config.artifact }}
