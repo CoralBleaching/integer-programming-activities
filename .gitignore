@@ -4,3 +4,4 @@ build
 test*
 install
 entrega
+*pycache*

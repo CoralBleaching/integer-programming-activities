@@ -115,6 +115,15 @@ struct Matrix
         return data[k];
     }
 
+    int &at(size_t i, size_t j)
+    {
+        if (i >= nrows)
+            throw std::invalid_argument("Tried to access beyond number of rows.");
+        if (j >= ncols)
+            throw std::invalid_argument("Tried to acess beyond number of columns.");
+        return data[i * ncols + j];
+    }
+
     Row operator[](size_t i)
     {
         if (i >= nrows)
