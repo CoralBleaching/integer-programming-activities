@@ -139,7 +139,7 @@ And following are the proper pre-processing functions and main algorithm:
 
 ### `matrix.hpp`
 
-This is a microscopic version of a larger project of mine, [Cpp-Linear-Algebra](https://github.com/CoralBleaching/Cpp-Linear-Algebra). This Matrix abstraction was implemented here for performance purposes and also easy of use and readability. (Yes, readability and performance not cancelling each other) It was mainly created to avoid use of `std::vector<std::vector<int>>` or tedious manipulation of indices. It also exposes convenient methods that make the code more succint and expressive while still keeping performance cost minimal. I **adopted the phylosophy of in-place operations** and taking inputs as reference arguments in this implementation for this reason. 
+This is a microscopic version of a larger project of mine, [Cpp-Linear-Algebra](https://github.com/CoralBleaching/Cpp-Linear-Algebra). This Matrix abstraction was implemented here for performance purposes and also easy of use and readability. (Yes, readability and performance not cancelling each other) It was mainly created to avoid use of `std::vector<std::vector<int>>` or tedious manipulation of indices. It also exposes convenient methods that make the code more succint and expressive while still keeping performance cost minimal. I **adopted the phylosophy of in-place operations** and taking inputs as reference arguments in this implementation for this reason. There's also no concern with class scope and constness. A complete and comprehensively safe implementation is beyond the scope of this assignment and is best left for the aforementioned Linear Algebra project. I also opted not to utilize that project for this assignment as it's too big.
 
 This class also provides some basic error checking for out-of-bound access and for adding rows or columns whose size does not match the matrix's dimensions. Furthermore, it has an overloaded operator<< that allows for easy output of the matrix to an output stream.
 
@@ -162,6 +162,7 @@ However, as this small implementation is here to fit a very specific purpose, it
 | `removeColumn(size_t index)` | A member function that removes a column from the matrix. |
 | `removeColumns(std::set<size_t> columns)` | A member function that removes a set of columns from the matrix. |
 | `at(size_t k)` | A member function that returns a reference to the element at the given index in the matrix. |
+| `at(size_t i, size_t j)`| A member function that efficiently returns a reference to the element at row `i` and column `j` of the matrix.|
 | `operator[](size_t i)` | An overloaded operator that returns a `Row` object representing the row at the given index in the matrix. |
 | `row(size_t i)` | A member function that returns a `Row` object representing the row at the given index in the matrix. |
 | `col(size_t i)` | A member function that returns a `Column` object representing the column at the given index in the matrix. |

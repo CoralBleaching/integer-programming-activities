@@ -144,7 +144,7 @@ std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
 
     for (size_t j : variables)
         for (size_t i = 0; i < A.nrows; i++)
-            if (A[i][j] == 1)
+            if (A.at(i, j) == 1)
                 restrictions.emplace(i);
 
     removeRestrictions(A, restrictions);
