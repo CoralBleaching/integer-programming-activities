@@ -10,7 +10,9 @@
 
 // TO DO: remove the "remove variables" tracking variable? Superfluous?
 
-// Utility functions
+///////////////////////
+// Utility functions //
+///////////////////////
 
 std::vector<int> parseToIntVector(std::string line)
 {
@@ -68,14 +70,18 @@ void fillRange(Container &c, valueType n, valueType start = static_cast<valueTyp
                     { auto prev = i; i += increment; return prev; });
 }
 
-// Pre-processing steps
+//////////////////////////
+// Pre-processing steps //
+//////////////////////////
 
-/// Step 1
+/////////////
+/// Step 1 //
+/////////////
 
 enum class Step1Output
 {
-    IsUnitary,
-    IsNonUnitary,
+    IsUnit,
+    IsNotUnit,
     IsZero
 };
 
@@ -83,7 +89,7 @@ std::pair<Step1Output, size_t> isUnitVector(Matrix::Row row)
 {
     int sum = std::accumulate(row.begin(), row.end(), 0);
     if (sum > 1)
-        return std::make_pair(Step1Output::IsNonUnitary, static_cast<size_t>(-1));
+        return std::make_pair(Step1Output::IsNotUnit, static_cast<size_t>(-1));
     if (sum == 0)
         return std::make_pair(Step1Output::IsZero, static_cast<size_t>(-1));
     size_t variableIndex = 0;
@@ -92,7 +98,7 @@ std::pair<Step1Output, size_t> isUnitVector(Matrix::Row row)
         if (j != 0 && j != 1)
             throw std::runtime_error("Defective entries (not in {0, 1}) detected in data.");
         if (j)
-            return std::make_pair(Step1Output::IsUnitary, variableIndex);
+            return std::make_pair(Step1Output::IsUnit, variableIndex);
         variableIndex++;
     }
     throw std::runtime_error("Unkown error: this step is unreachable.");
@@ -100,9 +106,7 @@ std::pair<Step1Output, size_t> isUnitVector(Matrix::Row row)
 
 void removeRestrictions(Matrix &A, std::set<size_t> restrictions)
 {
-    size_t restrictionIndexOffset = 0;
-    for (const auto &restrictionIndex : restrictions)
-        A.removeRow(restrictionIndex - restrictionIndexOffset++);
+    A.removeRows(restrictions);
 }
 
 void removeVariables(Matrix &A, std::set<size_t> variablesToRemove, std::set<size_t> &variablesToKeep)
@@ -125,7 +129,7 @@ std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
         auto [isUnitVectorResult, j] = isUnitVector(A.row(i));
         switch (isUnitVectorResult)
         {
-        case Step1Output::IsUnitary:
+        case Step1Output::IsUnit:
             variables.emplace(j);
         case Step1Output::IsZero:
             restrictions.emplace(i);
@@ -150,7 +154,9 @@ std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
     return variables;
 }
 
-/// Steps 2 and 3
+///////////////////
+// Steps 2 and 3 //
+///////////////////
 
 template <typename Pair>
 struct valueGreater
@@ -238,7 +244,9 @@ auto preprocessingStep3(Matrix &A, std::set<size_t> &keptVariables)
     return preprocessingSubRoutine<COLUMN_WISE>(A, keptVariables);
 }
 
-// Main preprocessing routine
+////////////////////////////////
+// Main preprocessing routine //
+////////////////////////////////
 
 auto preprocess(Matrix &A)
 {
@@ -269,8 +277,10 @@ auto preprocess(Matrix &A)
     return std::make_tuple(keptVariables, removedVariables, selectedVariables);
 }
 
-// Main algorithm:
-// Greedy minimum set cover algorithm
+////////////////////////////////////////
+// Main algorithm:                    //
+// Greedy minimum set cover algorithm //
+////////////////////////////////////////
 
 auto minimumSetCoverSolveGreedy(Matrix &A)
 {
@@ -315,7 +325,9 @@ auto minimumSetCoverSolveGreedy(Matrix &A)
     return selected;
 }
 
-// Main program
+//////////////////
+// Main program //
+//////////////////
 
 int main()
 {

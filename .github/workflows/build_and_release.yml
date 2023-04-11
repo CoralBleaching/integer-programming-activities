@@ -1,7 +1,9 @@
 name: CMake Build and Upload
 
-on: [push]
-
+on:
+  push:
+    tags:
+      - 'v*'
 jobs:
   build:
     permissions: write-all
