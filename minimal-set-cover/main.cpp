@@ -52,6 +52,7 @@ Matrix readFile(std::string filepath)
     return A;
 }
 
+// Overloads the `<<` operator to allow printing of containers.
 template <template <typename...> typename Container, typename valueType>
 std::ostream &operator<<(std::ostream &os, const Container<valueType> &vector)
 {
@@ -62,6 +63,7 @@ std::ostream &operator<<(std::ostream &os, const Container<valueType> &vector)
     return os;
 }
 
+// Fills a container `c` with `n` elements, starting at `start`, with an increment of `increment`.
 template <typename Container, typename valueType = size_t>
 void fillRange(Container &c, valueType n, valueType start = static_cast<valueType>(0), valueType increment = static_cast<valueType>(1))
 {
@@ -85,6 +87,7 @@ enum class Step1Output
     IsZero
 };
 
+//  Takes a matrix row as input and checks if it is a unit vector. Returns a pair consisting of a `Step1Output` and the index of the non-zero element.
 std::pair<Step1Output, size_t> isUnitVector(Matrix::Row row)
 {
     int sum = std::accumulate(row.begin(), row.end(), 0);
@@ -109,6 +112,7 @@ void removeRestrictions(Matrix &A, std::set<size_t> restrictions)
     A.removeRows(restrictions);
 }
 
+// Removes columns from the matrix `A` with indices in `variablesToRemove`. The remaining column indices are returned in `variablesToKeep`.
 void removeVariables(Matrix &A, std::set<size_t> variablesToRemove, std::set<size_t> &variablesToKeep)
 {
     size_t variableIndexOffset = 0;
@@ -120,15 +124,16 @@ void removeVariables(Matrix &A, std::set<size_t> variablesToRemove, std::set<siz
     }
 }
 
+// The first step of pre-processing. The indices of remaining variables are stored in `keptVariables`. Returns the variables (indexes) it removed.
 std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
 {
     std::set<size_t> restrictions, variables;
 
     for (size_t i = 0; i < A.nrows; i++)
-    {
+    { // identify unit vector rows and removes them as restrictions
         auto [isUnitVectorResult, j] = isUnitVector(A.row(i));
         switch (isUnitVectorResult)
-        {
+        { // identifying variables associated with those rows
         case Step1Output::IsUnit:
             variables.emplace(j);
         case Step1Output::IsZero:
@@ -138,15 +143,15 @@ std::set<size_t> preprocessingStep1(Matrix &A, std::set<size_t> &keptVariables)
             break;
         }
     }
-
     removeRestrictions(A, restrictions);
     restrictions.clear();
 
+    // look for further restrictions associated with those variables
     for (size_t j : variables)
         for (size_t i = 0; i < A.nrows; i++)
             if (A.at(i, j) == 1)
                 restrictions.emplace(i);
-
+    // and remove them
     removeRestrictions(A, restrictions);
 
     removeVariables(A, variables, keptVariables);
@@ -182,6 +187,7 @@ enum LINETYPE
     ROW_WISE
 };
 
+// Takes a matrix `A` and returns a `multiset` of pairs where the first element is the index of a row or column in `A` and the second element is the sum of that row or column. If `LineWise` is `COLUMN_WISE`, the multiset is ordered by column sums in descending order, otherwise it's ordered by row sums in descending order.
 template <LINETYPE LineWise>
 auto orderBySumDescending(Matrix &A)
 {
@@ -200,13 +206,17 @@ auto orderBySumDescending(Matrix &A)
     return sums;
 }
 
+// Preprocessing routine for both steps 2 and 3 that takes a matrix and performs one step of the preprocessing algorithm by removing some rows or columns based on a criterion.
 template <LINETYPE LineWise, bool IsColumn = LineWise == COLUMN_WISE>
 auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::set<size_t> &, void *> keptVariables = nullptr)
 {
+    // `LineWise` is used to specialize the function to either remove columns or rows.
     using LineType = std::conditional_t<IsColumn, Matrix::Column, Matrix::Row>;
-
+    // let's start by the lines with more "1"s
     auto sums = orderBySumDescending<LineWise>(A);
-
+    // compare each line to one another. If row-wise mode, we mark
+    // removal the rows which have others as subsets. If column-wise
+    // mode, we mark the columns which are subsets of others.
     std::set<size_t> markedForRemoval;
     for (auto k = sums.begin(); k != sums.end(); k++)
     {
@@ -222,12 +232,13 @@ auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::set<si
         }
     }
 
+    // If column mode, it's step 3 and we return the removed variables
     if constexpr (IsColumn)
     {
         removeVariables(A, markedForRemoval, keptVariables);
         return markedForRemoval;
     }
-    else
+    else // otherwise it's step 2 and we only report if something was done
     {
         removeRestrictions(A, markedForRemoval);
         return markedForRemoval.size() != 0;
@@ -250,6 +261,9 @@ auto preprocessingStep3(Matrix &A, std::set<size_t> &keptVariables)
 
 auto preprocess(Matrix &A)
 {
+    // We create the variables that keep track of which columns
+    // we keep, which we remove and which we select for our
+    // solution after the preprocessing step
     std::set<size_t> keptVariables;
     fillRange(keptVariables, A.ncols);
     std::set<size_t> removedVariables, selectedVariables;
@@ -258,7 +272,8 @@ auto preprocess(Matrix &A)
     while (processed)
     {
         processed = false;
-
+        // steps 1 and 3 return sets of variables removed.
+        // removed on step 1 implies being selected
         auto step1 = preprocessingStep1(A, keptVariables);
         if (step1.size() != 0)
             processed = true;
