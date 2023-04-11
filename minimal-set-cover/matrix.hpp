@@ -75,13 +75,20 @@ struct Matrix
 
     void appendColumn(std::vector<int> vec) { appendColumn(vec.begin(), vec.end()); }
 
+    bool empty() { return data.empty(); }
+
     void removeRow(size_t index)
     {
         data.erase(data.begin() + index * ncols, data.begin() + (index + 1) * ncols);
         nrows--;
     }
 
-    bool empty() { return data.empty(); }
+    void removeRows(std::set<size_t> rows)
+    {
+        size_t rowIndexOffset = 0;
+        for (const auto &rowIndex : rows)
+            removeRow(rowIndex - rowIndexOffset++);
+    }
 
     void removeColumn(size_t index)
     {
@@ -92,6 +99,13 @@ struct Matrix
             data.erase(begin + index + i * ncols - deletionOffset++);
         }
         ncols--;
+    }
+
+    void removeColumns(std::set<size_t> columns)
+    {
+        size_t columnIndexOffset = 0;
+        for (const auto &columnIndex : columns)
+            removeColumn(columnIndex - columnIndexOffset++);
     }
 
     int &at(size_t k)
