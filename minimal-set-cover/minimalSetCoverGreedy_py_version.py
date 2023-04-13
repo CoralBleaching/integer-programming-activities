@@ -1,55 +1,32 @@
 from enum import Enum, auto
 from sortedcontainers import SortedSet, SortedKeyList
-from typing import Set, Tuple, Optional
+from typing import List, Set, Tuple, Optional
 import numpy as np
 import os
 
 
-class Step1Output(Enum):
-    IsUnit = auto()
-    IsNotUnit = auto()
-    IsZero = auto()
-
-
-def is_unit_vector(arr: np.ndarray) -> Tuple[Step1Output, int]:
-    sum = arr.sum()
-    if sum > 1:
-        return Step1Output.IsNotUnit, -1
-    elif sum == 0:
-        return Step1Output.IsZero, -1
-
-    variable_index = 0
-    for j in arr:
-        if j != 0 and j != 1:
-            raise ValueError(
-                'Defective entries (not in {0, 1}) detected in data.')
-        if j == 1:
-            return Step1Output.IsUnit, variable_index
-        variable_index += 1
-
-
-def preprocessing_step_1(A: np.ndarray, kept_variables: SortedSet) -> Set:
+def preprocessing_step_1(A: np.ndarray, kept_variables: SortedSet):
     removed_restrictions = SortedSet()
     removed_variables = SortedSet()
-
+    row_index = 0
     for row in A:
-        is_unit_vector_result, j = is_unit_vector(row)
-        if is_unit_vector_result == Step1Output.IsUnit:
-            removed_variables.add(j)
-        if is_unit_vector_result != Step1Output.IsNotUnit:
-            removed_restrictions.add(j)
-
-    for j in removed_variables:
-        for i in range(A.shape[0]):
-            if A[i, j] == 1:
-                removed_restrictions.add(i)
+        row_sum = row.sum()
+        if row_sum == 1:
+            column_index = np.where(row == 1)[0][0]
+            removed_variables.add(column_index)
+        if row_sum == 0:
+            removed_restrictions.add(row_index)
+        row_index += 1
+    for var_index in removed_variables:
+        removed_restrictions.update(np.where(A[:, var_index] == 1)[0])
 
     A = np.delete(A, removed_restrictions, 0)
     A = np.delete(A, removed_variables, 1)
 
+    removed_variables = SortedSet(np.array(kept_variables)[removed_variables])
     kept_variables -= removed_variables
 
-    return A, removed_variables, kept_variables
+    return A, removed_variables
 
 
 class LineMode(Enum):
@@ -57,13 +34,13 @@ class LineMode(Enum):
     Row = auto()
 
 
-def order_by_sum_descending(A: np.ndarray, mode: LineMode) -> SortedKeyList[int, int]:
+def order_by_sum_descending(A: np.ndarray, mode: LineMode) -> List[Tuple[int, int]]:
     index_sum_pairs = SortedKeyList(key=lambda x: x[1])
     axis = 1 if mode == LineMode.Column else 0
     sums = A.sum(int(not axis))
     for idx in range(A.shape[axis]):
         index_sum_pairs.add((idx, sums[idx]))
-    return index_sum_pairs
+    return list(reversed(index_sum_pairs))
 
 
 def is_second_subset_of_first(a, b) -> bool:
@@ -75,21 +52,21 @@ def is_second_subset_of_first(a, b) -> bool:
 
 def preprocessing_subroutine(A: np.ndarray, mode: LineMode, kept_variables: Optional[SortedSet] = None) -> Tuple[bool, Optional[SortedSet]]:
     index_sum_pairs = order_by_sum_descending(A, mode)
-    removed_variables = SortedSet()
-    for k, sum_k in index_sum_pairs:
-        for l, sum_l in index_sum_pairs[k + 1:]:
+    marked_for_removal = SortedSet()
+    for i, (k, sum_k) in enumerate(index_sum_pairs, 1):
+        for l, sum_l in index_sum_pairs[i:]:
             line_k = A[:, k] if mode == LineMode.Column else A[k, :]
             line_l = A[:, l] if mode == LineMode.Column else A[l, :]
             if is_second_subset_of_first(line_k, line_l):
-                removed_variables.add(l if mode == LineMode.Column else k)
+                marked_for_removal.add(l if mode == LineMode.Column else k)
 
     axis = 1 if mode == LineMode.Column else 0
-    A = np.delete(A, removed_variables, axis)
+    A = np.delete(A, marked_for_removal, axis)
 
     if kept_variables is not None:
-        kept_variables -= removed_variables
+        kept_variables -= marked_for_removal
 
-    return A, len(removed_variables) > 0, kept_variables
+    return A, len(marked_for_removal) > 0
 
 
 def preprocess(A: np.ndarray) -> Tuple[Set[int], SortedSet]:
@@ -99,16 +76,17 @@ def preprocess(A: np.ndarray) -> Tuple[Set[int], SortedSet]:
     processed = True
     while (processed):
         processed = False
-        A, selected, kept_variables = preprocessing_step_1(A, kept_variables)
+        A, selected = preprocessing_step_1(A, kept_variables)
         if len(selected) != 0:
             processed = True
         selected_variables.update(selected)
+        print(selected_variables)
 
-        A, step2, _ = preprocessing_subroutine(A, LineMode.Row)
+        A, step2 = preprocessing_subroutine(A, LineMode.Row)
         if step2:
             processed = True
 
-        A, has_processed, kept_variables = preprocessing_subroutine(
+        A, has_processed = preprocessing_subroutine(
             A, LineMode.Column, kept_variables)
         if (has_processed):
             processed = True
@@ -119,9 +97,9 @@ def preprocess(A: np.ndarray) -> Tuple[Set[int], SortedSet]:
 def minimum_set_cover_solve_greedy(A: np.ndarray):
     A, kept_variables, selected_variables = preprocess(A)
 
-    while not A.shape[1] == 0:
+    while not (A.shape[1] == 0 or A.shape[0] == 0):
         sums = order_by_sum_descending(A, LineMode.Column)
-        max_col = sums[-1][0]
+        max_col = sums[0][0]
         selected_variables.add(kept_variables[max_col])
 
         s_star = A[:, max_col]

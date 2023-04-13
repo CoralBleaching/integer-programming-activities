@@ -1,0 +1,71 @@
+bool printA = false;
+A = readFile(cwd.string() + "/entrada.txt");
+if (printA)
+    std::cout << A;
+auto sol = minimumSetCoverSolveGreedy(A);
+std::cout << sol.size() << ": " << sol << "\n\n";
+
+A = readFile(cwd.string() + "/entrada.txt");
+auto [kep, rem, sel] = preprocess(A);
+std::cout << "preprocess(A)\n";
+if (printA)
+    std::cout << A;
+std::cout << "removed vars = " << rem << "\nkept vars = " << kep << "\n"
+            << "selected vars = " << sel << "\n"
+            << std::endl;
+
+A = readFile(cwd.string() + "/entrada.txt");
+std::set<size_t> variables1;
+fillRange(variables1, A.ncols);
+auto rvars1 = preprocessingStep1(A, variables1);
+std::cout << "preprocess1\n\nremoved vars = " << rvars1 << "\nkept vars = " << variables1;
+if (printA)
+    std::cout << A;
+std::cout << "\n";
+// std::cout << A;
+
+A = readFile(cwd.string() + "/entrada.txt");
+// auto rowwise = orderBySumDescending<ROW_WISE>(A);
+// auto colwise = orderBySumDescending<COLUMN_WISE>(A);
+// std::cout << "rowwise\n";
+// for (auto &i : rowwise)
+//     std::cout << i.first << ", " << i.second << "\n";
+// std::cout << "colwise\n";
+// for (auto &i : colwise)
+//     std::cout << i.first << ", " << i.second << "\n";
+preprocessingStep2(A);
+std::cout << "preprocess2\n";
+if (printA)
+    std::cout << A;
+std::set<size_t>
+    variables23;
+fillRange(variables23, A.ncols);
+auto rvars23 = preprocessingStep3(A, variables23);
+std::cout << "preprocess2->3\n\nremoved vars = " << rvars23 << "\nkept vars = " << variables23 << "\n";
+if (printA)
+    std::cout << A;
+
+A = readFile(cwd.string() + "/entrada.txt");
+std::set<size_t> variables3;
+fillRange(variables3, A.ncols);
+auto rvars3 = preprocessingStep3(A, variables3);
+std::cout << "preprocess3\n\nremoved vars = " << rvars3 << "\nkept vars = " << variables3 << "\n";
+if (printA)
+    std::cout << A;
+
+auto B = A;
+auto sol3 = minimumSetCoverSolveGreedy(B);
+std::cout << sol.size() << ": " << sol << "\n\n";
+
+preprocessingStep2(A);
+std::cout << "preprocess3->2\n";
+if (printA)
+    std::cout << A;
+
+/*
+N = 130  # Numero de objetos
+M = 110  # Numero de subconjuntos
+
+# Semente para o gerador pseudoaleatorio
+rd.seed(444)
+*/

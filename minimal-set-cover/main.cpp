@@ -230,7 +230,7 @@ auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::set<si
     else
     {
         removeRestrictions(A, markedForRemoval);
-        return markedForRemoval.empty();
+        return markedForRemoval.size() != 0;
     }
 }
 
@@ -254,13 +254,13 @@ auto preprocess(Matrix &A)
     fillRange(keptVariables, A.ncols);
     std::set<size_t> removedVariables, selectedVariables;
 
-    bool processed = false;
-    while (!processed)
+    bool processed = true;
+    while (processed)
     {
         processed = false;
 
         auto step1 = preprocessingStep1(A, keptVariables);
-        if (!step1.empty())
+        if (step1.size() != 0)
             processed = true;
         removedVariables.insert(step1.begin(), step1.end());
         selectedVariables.merge(step1);
@@ -269,7 +269,7 @@ auto preprocess(Matrix &A)
             processed = true;
 
         auto step3 = preprocessingStep3(A, keptVariables);
-        if (!step3.empty())
+        if (step3.size() != 0)
             processed = true;
         removedVariables.merge(step3);
     }

@@ -1,6 +1,7 @@
 *.exe
-.vscode
+#.vscode
 build
-test*
+#test*
 install
 entrega
+*pycache*
