@@ -268,6 +268,7 @@ auto preprocess(Matrix &A)
     fillRange(keptVariables, A.ncols);
     std::set<size_t> removedVariables, selectedVariables;
 
+    // If all steps are called and nothing is done, we stop
     bool processed = true;
     while (processed)
     {
