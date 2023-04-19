@@ -34,7 +34,7 @@ class LineMode(Enum):
     Row = auto()
 
 
-def order_by_sum_descending(A: np.ndarray, mode: LineMode) -> List[Tuple[int, int]]:
+def order_by_sum_descending(A: np.ndarray, mode: LineMode):
     index_sum_pairs = SortedKeyList(key=lambda x: x[1])
     axis = 1 if mode == LineMode.Column else 0
     sums = A.sum(int(not axis))
@@ -50,28 +50,39 @@ def is_second_subset_of_first(a, b) -> bool:
     return True
 
 
-def preprocessing_subroutine(A: np.ndarray, mode: LineMode, kept_variables: Optional[SortedSet] = None) -> Tuple[bool, Optional[SortedSet]]:
+def preprocessing_subroutine(
+        A: np.ndarray, 
+        mode: LineMode,
+        kept_variables: Optional[SortedSet] = None
+        ):
     index_sum_pairs = order_by_sum_descending(A, mode)
     marked_for_removal = SortedSet()
     for i, (k, sum_k) in enumerate(index_sum_pairs, 1):
         for l, sum_l in index_sum_pairs[i:]:
             line_k = A[:, k] if mode == LineMode.Column else A[k, :]
             line_l = A[:, l] if mode == LineMode.Column else A[l, :]
+            # print(f'{k}:{line_k} {l}:{line_l}')
             if is_second_subset_of_first(line_k, line_l):
                 marked_for_removal.add(l if mode == LineMode.Column else k)
+                # print(f'{l} is subset of {k}')
 
     axis = 1 if mode == LineMode.Column else 0
+    print(f'{axis = } {A.shape = }')
     A = np.delete(A, marked_for_removal, axis)
+    print(f'{A.shape = }')
+
 
     if kept_variables is not None:
+        marked_for_removal = SortedSet(np.array(kept_variables)[marked_for_removal])
         kept_variables -= marked_for_removal
 
-    return A, len(marked_for_removal) > 0
+    return A, marked_for_removal
 
 
-def preprocess(A: np.ndarray) -> Tuple[Set[int], SortedSet]:
+def preprocess(A: np.ndarray):
     kept_variables = SortedSet(range(A.shape[1]))
     selected_variables = SortedSet()
+    removed_variables = SortedSet()
 
     processed = True
     while (processed):
@@ -79,23 +90,29 @@ def preprocess(A: np.ndarray) -> Tuple[Set[int], SortedSet]:
         A, selected = preprocessing_step_1(A, kept_variables)
         if len(selected) != 0:
             processed = True
-        selected_variables.update(selected)
-        print(selected_variables)
+            selected_variables.update(selected)
+            removed_variables.update(selected)
+        print(f'1)\nr = {selected}\ns = {selected_variables}')
 
         A, step2 = preprocessing_subroutine(A, LineMode.Row)
-        if step2:
+        if len(step2) > 0:
             processed = True
+        print(f'2)\nr = {step2}')
 
-        A, has_processed = preprocessing_subroutine(
+        A, removed = preprocessing_subroutine(
             A, LineMode.Column, kept_variables)
-        if (has_processed):
+        if len(removed) > 0:
             processed = True
+            removed_variables.update(removed)
+        print(f'3)\nr = {removed}')
 
-    return A, kept_variables, selected_variables
+
+    return A, kept_variables, removed_variables, selected_variables
 
 
 def minimum_set_cover_solve_greedy(A: np.ndarray):
-    A, kept_variables, selected_variables = preprocess(A)
+    A, kept_variables, removed_variables, selected_variables = preprocess(A)
+    B = A.copy()
 
     while not (A.shape[1] == 0 or A.shape[0] == 0):
         sums = order_by_sum_descending(A, LineMode.Column)
@@ -118,14 +135,14 @@ def minimum_set_cover_solve_greedy(A: np.ndarray):
 
         A = np.delete(A, columns_to_remove, 1)
 
-    return selected_variables
+    return B, selected_variables, kept_variables, removed_variables
 
 
 def main():
     A = np.genfromtxt(os.getcwd() + '/entrada.txt',
                       delimiter=1, dtype=np.int16)
-    sol = minimum_set_cover_solve_greedy(A)
-    print(sol)
+    B, sol, kept, removed = minimum_set_cover_solve_greedy(A)
+    print(f'sol: {sol}\nkept: [{len(kept)}] {kept}\nrows: [{B.shape[0]}]')
 
 
 if __name__ == '__main__':

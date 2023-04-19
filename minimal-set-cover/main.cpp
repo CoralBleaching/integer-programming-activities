@@ -230,7 +230,7 @@ auto preprocessingSubRoutine(Matrix &A, std::conditional_t<IsColumn, std::set<si
     else
     {
         removeRestrictions(A, markedForRemoval);
-        return markedForRemoval.size() != 0;
+        return markedForRemoval;
     }
 }
 
@@ -262,16 +262,23 @@ auto preprocess(Matrix &A)
         auto step1 = preprocessingStep1(A, keptVariables);
         if (step1.size() != 0)
             processed = true;
+        std::cout << "1)\nr = " << step1 << std::endl;
         removedVariables.insert(step1.begin(), step1.end());
         selectedVariables.merge(step1);
 
-        if (preprocessingStep2(A))
+        std::cout << "s = " << selectedVariables << std::endl;
+
+        auto step2 = preprocessingStep2(A);
+        if (step2.size() > 0)
             processed = true;
+        std::cout << "2)\nr = " << step2 << std::endl;
 
         auto step3 = preprocessingStep3(A, keptVariables);
         if (step3.size() != 0)
             processed = true;
         removedVariables.merge(step3);
+
+        std::cout << "3)\nr = " << step3 << std::endl;
     }
 
     return std::make_tuple(keptVariables, removedVariables, selectedVariables);
@@ -333,22 +340,96 @@ int main()
 {
     auto cwd = std::filesystem::current_path();
     Matrix A;
-    try
-    {
-        A = readFile(cwd.string() + "/entrada.txt");
-        // I don't agree with putting a print statement on the minimumSetCoverSolveGreedy function,
-        // thus I'll preprocess the matrix twice just in order to fulfill the printing requirements.
-        auto B = A;
-        auto [kept, removed, selected] = preprocess(A);
-        auto sol = minimumSetCoverSolveGreedy(B);
-        std::cout << "No. of variables remaining after preprocessing: " << kept.size()
-                  << "\nNo. of restrictions remaining after preprocessing: " << A.nrows;
-        std::cout << "\nFinal No. of selected variables: " << sol.size();
-    }
-    catch (std::exception &err)
-    {
-        std::cerr << err.what() << std::endl;
-        return 1;
-    }
+    // try
+    // {
+    //     A = readFile(cwd.string() + "/entrada.txt");
+    //     // I don't agree with putting a print statement on the minimumSetCoverSolveGreedy function,
+    //     // thus I'll preprocess the matrix twice just in order to fulfill the printing requirements.
+    //     auto B = A;
+    //     auto [kept, removed, selected] = preprocess(A);
+    //     auto sol = minimumSetCoverSolveGreedy(B);
+    //     std::cout << "No. of variables remaining after preprocessing: " << kept.size()
+    //               << "\nNo. of restrictions remaining after preprocessing: " << A.nrows;
+    //     std::cout << "\nFinal No. of selected variables: " << sol.size();
+    // }
+    // catch (std::exception &err)
+    // {
+    //     std::cerr << err.what() << std::endl;
+    //     return 1;
+    // }
+
+    bool printA = false;
+    A = readFile(cwd.string() + "/entrada.txt");
+    if (printA)
+        std::cout << A;
+    auto sol = minimumSetCoverSolveGreedy(A);
+    std::cout << sol.size() << ": " << sol << "\n\n";
+
+    A = readFile(cwd.string() + "/entrada.txt");
+    auto [kep, rem, sel] = preprocess(A);
+    std::cout << "preprocess(A)\n";
+    if (printA)
+        std::cout << A;
+    std::cout << "removed vars = " << rem << "\nkept vars = " << kep << "\n"
+              << "selected vars = " << sel << "\n"
+              << std::endl;
+
+    A = readFile(cwd.string() + "/entrada.txt");
+    std::set<size_t> variables1;
+    fillRange(variables1, A.ncols);
+    auto rvars1 = preprocessingStep1(A, variables1);
+    std::cout << "preprocess1\n\nremoved vars = " << rvars1 << "\nkept vars = " << variables1;
+    if (printA)
+        std::cout << A;
+    std::cout << "\n";
+    // std::cout << A;
+
+    A = readFile(cwd.string() + "/entrada.txt");
+    // auto rowwise = orderBySumDescending<ROW_WISE>(A);
+    // auto colwise = orderBySumDescending<COLUMN_WISE>(A);
+    // std::cout << "rowwise\n";
+    // for (auto &i : rowwise)
+    //     std::cout << i.first << ", " << i.second << "\n";
+    // std::cout << "colwise\n";
+    // for (auto &i : colwise)
+    //     std::cout << i.first << ", " << i.second << "\n";
+    auto stp2 = preprocessingStep2(A);
+    std::cout << "preprocess2\n";
+    if (printA)
+        std::cout << A;
+    std::cout << "removed rows: " << stp2 << "\n";
+    std::set<size_t>
+        variables23;
+    fillRange(variables23, A.ncols);
+    auto rvars23 = preprocessingStep3(A, variables23);
+    std::cout << "preprocess2->3\n\nremoved vars = " << rvars23 << "\nkept vars = " << variables23 << "\n";
+    if (printA)
+        std::cout << A;
+
+    A = readFile(cwd.string() + "/entrada.txt");
+    std::set<size_t> variables3;
+    fillRange(variables3, A.ncols);
+    auto rvars3 = preprocessingStep3(A, variables3);
+    std::cout << "preprocess3\n\nremoved vars = " << rvars3 << "\nkept vars = " << variables3 << "\n";
+    if (printA)
+        std::cout << A;
+
+    auto B = A;
+    auto sol3 = minimumSetCoverSolveGreedy(B);
+    std::cout << sol.size() << ": " << sol << "\n\n";
+
+    preprocessingStep2(A);
+    std::cout << "preprocess3->2\n";
+    if (printA)
+        std::cout << A;
+
+    /*
+    N = 130  # Numero de objetos
+    M = 110  # Numero de subconjuntos
+
+    # Semente para o gerador pseudoaleatorio
+    rd.seed(444)
+    */
+
     return 0;
 }
