@@ -5,3 +5,9 @@ test*
 install
 entrega
 *pycache*
+
+*.aux
+*.fls
+*.log
+*.gz
+*.fdb_latexmk

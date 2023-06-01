@@ -1,0 +1,139 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}  
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+
+\title{Universidade Federal do Ceará, Departamento de Estatística e Matemática Aplicada\\ 
+Programação Inteira (CC0399), período 2023.1}
+\author{Aluno: Renato Marques de Oliveira (olivera@alu.ufc.br)}
+
+\begin{document}
+
+\maketitle
+
+\section*{Atividade 2}
+
+\subsection*{Questão 1}
+
+\textbf{Solução:}
+
+\begin{enumerate}[label=(\roman*)]
+    \item Índices:
+    
+    $i = 10,\dots,19$. Cada $i$ é um horário possível para alguma disciplina.
+
+    $k = 1,\dots n$, onde $n$ é o número de disciplinas ofertadas. Cada $k$ representa uma disciplina.
+
+    Variáveis do problema:
+
+    $p_{ik}$: preferência de Zezão.
+
+    $a_{ik} \in \{0, 1\}$: a disciplina $k$ é ofertada no horário $i$.
+
+    $x_{ik} \in \{0, 1\}$: Zezão faz a disciplina $k$ no horário $i$.
+
+    \[ \max \sum_{k = 1}^{n} \sum_{i = 10}^{19} a_{ik} x_{ik} p_{ik}, \]
+    sujeito à 
+
+    \begin{align}
+        \sum_{k = 1}^{n} \sum_{i = 10}^{19} a_{ik} x_{ik} &= 4\label{restr1} \\
+        \sum_{i = 10}^{19} a_{ik} x_{ik} &= 1,\quad k = 1,\dots,n \label{restr2}\\
+        \sum_{k = 1}^{n} a_{ik} x_{ik} &= 1,\quad i = 10,\dots,19 \label{restr3}
+    \end{align}
+
+    
+    Explicação das restrições:
+
+    (\ref{restr1}) Precisamos de 4 disciplinas;
+
+    (\ref{restr2}) Necessitamos de exatamente 1 turma por disciplina;
+
+    (\ref{restr3}) Necessitamos de exatamente 1  disciplina por horário;
+
+    \item Seja $\allowbreak\{
+        (r,s,t) \mid 10 \leq r = s - 1 = t - 2 \leq 19
+    \}$, isto é, $\{
+        (10, 11, 12),\allowbreak \ (11, 12, 13),\allowbreak \ \dots, (17,18,19)
+    \}$.
+
+    Ao problema acima, acrescentamos a seguinte restrição:
+
+    \[
+        \sum_{k = 1}^{n} \bigl(a_{rk}x_{rk} + a_{sk}x_{sk} + a_{tk}x_{tk}\bigr) \leq 2
+    \]
+
+    Explicação: Não podemos escolher três disciplinas com horários seguidos, no máximo duas.
+
+    \item Não está claro qual o relacionamento exato entre a preferência de Zezão por um professor e a sua preferência por um horário. Existe um peso maior de um para o outro? E qual a magnitude absoluta de cada uma dessas medidas? Bom, como estamos resolvendo um 
+    problema linear, que favoreçamos supor a independência das duas medidas, tornando-as aditivas, e, para cancelar diferenças de magnitude, vamos tentar normalizar cada termo da função objetivo (de que 2 seja um limite superior). A função objetivo se torna:
+    
+    \[
+        \max \frac
+            {\sum_{k = 1}^{n} \sum_{i = 10}^{19} a_{ik} x_{ik} p_{ik}}
+            {\sum_{k = 1}^{n} \sum_{i = 10}^{19} p_{ik}}
+            +
+        \frac
+            {\sum_{i = 10}^{19}\bigl(i\sum_{k = 1}^{n}  a_{ik} x_{ik}\bigr)}
+            {n\sum_{i = 10}^{19} i} 
+    \]
+
+    Obs: note que $a_{ik} = 0 \implies p_{ik} = 0$. A não ser, possivelmente, nas fantasias de Zezão.
+\end{enumerate}
+
+
+\subsection*{Questão 2}
+
+\textbf{Solução:}
+
+Vamos definir as variáveis do problema. Seus valores representam a escolha de cada dígito, $x_i = 1$ se escolhemos o dígito $i$ para a primeira posição (e vice-versa) e assim em diante. 
+\begin{align*}
+    x_i \in \{0,1\},&\quad i = 1,\dots,9\\
+    y_i \in \{0,1\},&\quad i = 1,\dots,9\\
+    z_i \in \{0,1\},&\quad i = 1,\dots,9\\
+\end{align*}
+
+A princípio, pode haver uma vontade de utilizar um conjunto indexador diferente para cada variável. Porém, pelo princípio da equivalência das letras, percebemos que podemos reunir todas as variáveis através do mesmo conjunto indexador, como veremos a seguir.
+
+Função objetivo:
+\[
+    \max \sum_{i = 1}^{9} x_i + \sum_{i = 1}^{9} y_i + \sum_{i = 1}^{9} z_i = \sum_{i = 1}^{9} \bigl(x_i + y_i + z_i\bigr)
+\]
+
+Explicação: queremos alocar o máximo de dígitos possível (3).
+
+Sujeita à:
+\begin{align*}
+    \sum_{i=1}^{9} x_i &= 1\\
+    \sum_{i=1}^{9} y_i &= 1\\
+    \sum_{i=1}^{9} z_i &= 1\\
+\end{align*}
+
+Explicação: Só podemos escolher um dígito em cada posição. A função objetivo poderia ser uma contante.
+
+\[ 
+    \sum \big(x_i + y_i + z_i\big) \leq 1\quad i = 1,\dots9
+\]
+
+Explicação: Não podem haver dígitos repetidos.
+
+\centering Dica: Restrição: 
+    \[289\colon x_2 + y_8 + z_9 = 1 \]
+    
+    Explicação: Apenas um dos dígitos pode ser correto, as outras duas variáveis devem ter valor zero. Além disso, as variáveis dos outros valores do dígito correto serão levadas a zero pela restrição acima.
+    \[215\colon x_1 + x_5 + y_2 + y_5 + z_2 + z_1 = 1 \]
+    
+    Explicação: $x_2$, $y_1$ e $z_5$ devem ter valor zero, pois os díigitos não podem estar corretos. Das opções restantes, apenas uma pode estar correta. Um efeito cascata similar ao descrito acima irá ocorrer quando um valor for selecionado.
+    \[942\colon x_4 + x_2 + y_9 + y_2 + z_9 + z_4 = 2 \]
+    
+    Explicação: Similar ao caso anterior, mas temos necessariamente que 2 valores são escolhidos ($=1$). Os valores ilegais são excluídos, e a consistência lógica é garantida pelas três restrições iniciais.   
+    \[738\colon x_7 + y_3 + z_8 = 0 \]
+    
+    Explicação: Não podemos escolher esses dígitos para essas posições.
+    \[784\colon x_8 + x_4 + y_7 + y_4 + z_7 + z_8 = 1 \]
+    
+    Explicação: similar a um anterior. 
+
+% Add more questions as needed
+
+\end{document}

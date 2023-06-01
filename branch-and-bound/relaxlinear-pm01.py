@@ -8,6 +8,9 @@
 # melhor solucao inteira obtida durante o processo, e apresente
 # esta solucao ao final.
 
+import igraph as ig
+import matplotlib.pyplot as plt
+
 def relaxacao_linear_mochila(lucros: list[int] | list[float], 
                              pesos: list[int] | list[float], 
                              capacidade: int, 
@@ -55,16 +58,19 @@ def branch_and_bound_mochila(lucros: list[int] | list[float],
                              capacidade: int,
                              verbose: bool=False,
                              tolerancia: float = 1e-6):
-    pilha: list[dict[int, float]] = [ dict() ]
+    nome_raiz = 'raiz'
+    pilha: list[tuple[str, dict[int, float]]] = [ (nome_raiz, dict()) ]
     melhor: tuple[float, dict[int, float]] = (-1., {})
+    arvore = ig.Graph(1)
+    arvore.vs[0]['name'] = nome_raiz
 
     while len(pilha) > 0:
         # Obter o problema subproblema a ser resolvido
-        atual = pilha.pop()
+        nome_no_anterior, variaveis_fixas = pilha.pop()
 
         # Resolver a relaxacao do subproblema
         z_RL, sol_RL, viavel_RL = relaxacao_linear_mochila(lucros, pesos, capacidade, 
-                                                             atual,tolerancia)
+                                                             variaveis_fixas,tolerancia)
         
         # Se o subproblema e' inviavel, ignore-o e siga para o proximo
         if not viavel_RL:
@@ -87,18 +93,22 @@ def branch_and_bound_mochila(lucros: list[int] | list[float],
                 print(z_RL, sol_RL)
 
         else: # Se a solucao nao e' inteira, siga dividindo
-
-            fixa_em_0 = dict(atual)
+            fixa_em_0 = dict(variaveis_fixas)
             fixa_em_0[variavel_de_ramificacao] = 0
+            nome_no_atual = f'x_{variavel_de_ramificacao}=0'
+            arvore.add_vertex(nome_no_atual)
+            arvore.add_edge(nome_no_anterior, nome_no_atual)
+            # Anexar à lista de subproblemas a resolver
+            pilha.append((nome_no_atual, fixa_em_0))
 
-            fixa_em_1 = dict(atual)
+            fixa_em_1 = dict(variaveis_fixas)
             fixa_em_1[variavel_de_ramificacao] = 1
-
-            # Anexar aa lista de subproblemas a resolver
-            pilha.append(fixa_em_0)
-            pilha.append(fixa_em_1)
+            nome_no_atual = f'x_{variavel_de_ramificacao}=1'
+            arvore.add_vertex(nome_no_atual)
+            arvore.add_edge(nome_no_anterior, nome_no_atual)
+            pilha.append((nome_no_atual, fixa_em_1))
     
-    return melhor
+    return melhor, arvore
 
 def main():
     # Exemplo de problema da mochila 0-1
@@ -106,8 +116,19 @@ def main():
     P = [5, 8, 3, 5, 3]
     C = 12
 
+    melhor, arvore = branch_and_bound_mochila(L, P, C, verbose=True)
     print('melhor:\nobj: {}\nsolução: {}'.format(
-        *branch_and_bound_mochila(L, P, C, verbose=True)))
+        *melhor))
+    
+    fig, ax = plt.subplots()
+    ig.plot(arvore, 
+            target=ax, 
+            vertex_label=arvore.vs['name'])
+    plt.show()
     
 if __name__ == '__main__':
     main()
+
+#%%
+x = 1
+# %%
