@@ -75,7 +75,7 @@ def main():
     new_restrictions: dict[str, int] | None = {'x': int(sol[0]) for sol in previous_solutions}
     counter = 0
     while True:
-        solver, status, solutions = puzzle(new_restrictions=new_restrictions)
+        solver, status, solutions = puzzle(solver, new_restrictions=new_restrictions)
         # if status != pywraplp.Solver.OPTIMAL:
         #     print(status)
         #     break
