@@ -1,5 +1,6 @@
 #%%
 import igraph as ig
+from matplotlib import pyplot as plt
 import numpy as np
 from ortools.linear_solver import pywraplp
 
@@ -52,26 +53,41 @@ def generate_vertex_cover_problem(
     return solver
 
 #%%
+def print_constraints(solver: pywraplp.Solver):
+    for constraint in solver.constraints():
+        print(constraint.name())
+
+#%%
 def get_objective_value(vars: list[pywraplp.Variable]) -> float:
     return sum(var.solution_value() for var in vars)    
 
 #%%
-def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[float, tuple[float, ...]] | None:
+def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[tuple[float, ...], ig.Graph]:
     solver = generate_vertex_cover_problem(graph)
     if solver is None: 
-        return
+        return (), ig.Graph()
     solver.Solve()
     
     objective: float = len(graph.vs)
     vars: list[pywraplp.Variable] = []
 
-    stack: list[tuple[pywraplp.Solver, list[tuple[int, int]]]] = \
-        [(solver, [])]
+    stack: list[tuple[str, pywraplp.Solver, list[tuple[int, int]]]] = \
+        [('root', solver, [])]
     
     optimum = objective
+    best_solution: tuple[float, ...] = ()
 
+    tree = ig.Graph()
+    tree.add_vertex('root', label='root')
+
+    node_idx = 1
     while len(stack) > 0:
-        solved_problem, fixed_vars = stack.pop()
+        parent_node, solved_problem, fixed_vars = stack.pop()
+
+        print(parent_node)
+        for fixed_var in fixed_vars:
+            print(fixed_var)
+        print()
 
         objective = get_objective_value(solved_problem.variables())
         vars = solved_problem.variables()
@@ -85,6 +101,7 @@ def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[float, tuple[float, ...]] |
         if branching_index is None:
             if objective < optimum:
                 optimum = objective
+                best_solution = tuple(var.solution_value() for var in vars)
             continue
         
         fixed_vars_ceil = fixed_vars + [(branching_index, 1)]
@@ -94,25 +111,38 @@ def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[float, tuple[float, ...]] |
         solver_floor = generate_vertex_cover_problem(graph, fixed_vars_floor)
 
         if (solver_ceil is None or solver_floor is None):
-            return
+            return (), ig.Graph()
 
         solver_ceil.Solve()
         solver_floor.Solve()
+
+        ceil_label = f'x{branching_index}=1'
+        floor_label = f'x{branching_index}=0'
+        ceil_node = str(node_idx)
+        node_idx += 1
+        floor_node = str(node_idx)
+        node_idx += 1
+        tree.add_vertex(
+            ceil_node, 
+            label=f'{ceil_label}\n{get_objective_value(solver_ceil.variables())}')
+        tree.add_edge(parent_node, ceil_node)
+        tree.add_vertex(
+            floor_node, 
+            label=f'{floor_label}\n{get_objective_value(solver_floor.variables())}')
+        tree.add_edge(parent_node, floor_node)
+
         stack.append(
-            (solver_ceil, fixed_vars_ceil)
+            (ceil_node, solver_ceil, fixed_vars_ceil)
         )
         stack.append(
-            (solver_floor, fixed_vars_floor)
+            (floor_node, solver_floor, fixed_vars_floor)
         )
 
-    return optimum, tuple(var.solution_value() for var in vars)    
+    return best_solution, tree    
 
 #%%
-def print_solution(solution: tuple[float, tuple[float, ...]] | None):
-    if solution is None: 
-        return
-    objective, vars = solution
-    print(f'{objective = }')
+def print_solution(vars: tuple[float, ...]):
+    print(f'objective = {sum(vars)}')
     for i, var in enumerate(vars):
         print(f'x_{i} = {var}')
 
@@ -121,12 +151,8 @@ def run_example(gg: ig.Graph, solver_version = SOLVER):
     solver = generate_vertex_cover_problem(gg, solver_version=solver_version)
     if not solver: 
         return
-    # for constraint in solverr.constraints():
-    #     print(constraint.name())
     solver.Solve()
-    print(f'objective = {get_objective_value(solver.variables())}')
-    for var in solver.variables():
-        print(f'{var.name()} = {var.solution_value()}')
+    print_solution(tuple(var.solution_value() for var in solver.variables()))
 
 #%%
 gg = generate_graph(np.random.default_rng(2023), 7, 0.5)
@@ -138,21 +164,25 @@ gg2 = generate_graph(np.random.default_rng(2023), 8, 0.5)
 run_example(gg2)
 ig.plot(gg2)
 #%%
-print_solution(solve_bab_vertex_cover(gg2))
+solution2, tree2 = solve_bab_vertex_cover(gg2) 
+print_solution(solution2)
+ig.plot(tree2)
 # %%
 gg3 = generate_graph(np.random.default_rng(2023), 9, 0.5)
-run_example(gg3)
 ig.plot(gg3)
 
 #%%
 run_example(gg3, 'SCIP')
-print_solution(solve_bab_vertex_cover(gg3))
+solution3, tree3 = solve_bab_vertex_cover(gg3) 
+print_solution(solution3)
 # %%
 gg4 = generate_graph(np.random.default_rng(2023), 14, 0.3)
-run_example(gg4)
 ig.plot(gg4)
 
 #%%
+fig, ax = plt.subplots()
 run_example(gg4, 'SCIP')
-print_solution(solve_bab_vertex_cover(gg4))
-
+solution4, tree4 = solve_bab_vertex_cover(gg4) 
+print_solution(solution4)
+ig.plot(tree4, target=ax, layout=tree4.layout('reingold_tilford'))
+#%%
