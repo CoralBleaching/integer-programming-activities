@@ -70,7 +70,7 @@ def branch_and_bound_mochila(lucros: list[int] | list[float],
 
         # Resolver a relaxacao do subproblema
         z_RL, sol_RL, viavel_RL = relaxacao_linear_mochila(lucros, pesos, capacidade, 
-                                                             variaveis_fixas,tolerancia)
+            variaveis_fixas,tolerancia)
         
         # Se o subproblema e' inviavel, ignore-o e siga para o proximo
         if not viavel_RL:
@@ -95,6 +95,7 @@ def branch_and_bound_mochila(lucros: list[int] | list[float],
         else: # Se a solucao nao e' inteira, siga dividindo
             fixa_em_0 = dict(variaveis_fixas)
             fixa_em_0[variavel_de_ramificacao] = 0
+
             nome_no_atual = f'x_{variavel_de_ramificacao}=0'
             arvore.add_vertex(nome_no_atual)
             arvore.add_edge(nome_no_anterior, nome_no_atual)
@@ -103,6 +104,7 @@ def branch_and_bound_mochila(lucros: list[int] | list[float],
 
             fixa_em_1 = dict(variaveis_fixas)
             fixa_em_1[variavel_de_ramificacao] = 1
+            
             nome_no_atual = f'x_{variavel_de_ramificacao}=1'
             arvore.add_vertex(nome_no_atual)
             arvore.add_edge(nome_no_anterior, nome_no_atual)
