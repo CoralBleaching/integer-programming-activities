@@ -1,12 +1,31 @@
-#%%
+
 import igraph as ig
 from matplotlib import pyplot as plt
 import numpy as np
 from ortools.linear_solver import pywraplp
 
+# TODO: 
+# - check feasibility of subproblem and stop gracefully
+# - pararelize the code
+# - introduce stopping conditions: max number of iterations etc.
+#
+
 SOLVER = 'GLOP'
-#%%
+
 def generate_graph(rng: np.random.Generator, n: int, density: float) -> ig.Graph:
+    """Generates a random ig.Graph object of given size with a 
+    given density of connections.
+
+    Args:
+        rng (np.random.Generator): An RNG device (for increased control)
+        n (int): The number of vertices.
+        density (float): The fraction of connections relative to the complete graph.
+
+    Returns:
+        ig.Graph: The randomly generated graph.
+    """    
+    if density < 0. or density > 1.:
+        raise ValueError('Density must be in [0, 1].')
     vertices = np.arange(n)
     adjacency = np.zeros((n, n))
     max_num_of_edges = n * (n - 1) / 2 
@@ -20,17 +39,31 @@ def generate_graph(rng: np.random.Generator, n: int, density: float) -> ig.Graph
     g.vs['label'] = list(range(n))
     return g
         
-#%%
+
 def generate_vertex_cover_problem(
         graph: ig.Graph, 
         fixed_vars: list[tuple[int, int]] | None = None,
         solver_version: str = SOLVER
         ) -> pywraplp.Solver | None:
+    """Creates an instance of a wrapper for a Solver of the given
+    algorithm, for example, GLOP, SCIP, GUROBI etc. Populates the
+    instance with variables, constraints and objective function 
+    definition. All can be retrieved via the `pywraplp` interface.
+
+    Args:
+        graph (ig.Graph): A graph to apply the problem to.
+        fixed_vars (list[tuple[int, int]], optional): A list of constraints of 
+        type "fixes a variable to a value". Defaults to None.
+        solver_version (str, optional): The underlying solver to be used by `pywraplp`. 
+        Defaults to SOLVER (global constant).
+
+    Returns:
+        pywraplp.Solver | None: The generated solver (problem instance). `None` if
+        `Solver` couldn't be instantiated.
+    """    
     solver: pywraplp.Solver = pywraplp.Solver.CreateSolver(solver_version)
     if not solver:
         return
-    
-    # solver.EnableOutput()
 
     n = len(graph.vs)
     x = [ solver.IntVar(0, 1, f'x_{i}') for i in range(n)]
@@ -52,17 +85,29 @@ def generate_vertex_cover_problem(
     
     return solver
 
-#%%
+
 def print_constraints(solver: pywraplp.Solver):
+    "Prints a description of each constraint of the given problem."
     for constraint in solver.constraints():
         print(constraint.name())
 
-#%%
+
 def get_objective_value(vars: list[pywraplp.Variable]) -> float:
     return sum(var.solution_value() for var in vars)    
 
-#%%
+
 def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[tuple[float, ...], ig.Graph]:
+    """Given a simple undirected graph, estimates its optimal vertex cover.
+
+    Args:
+        graph (ig.Graph): An ig.Graph object representing the graph.
+
+    Returns:
+        tuple[tuple[float, ...], ig.Graph]: The solution in the form of a binary vector
+        where each index corresponds to the index of a vertex in 
+        `graph` and the tree (ig.Graph object) showing all the 
+        decisions of the branch-and-bound.
+    """    
     solver = generate_vertex_cover_problem(graph)
     if solver is None: 
         return (), ig.Graph()
@@ -83,11 +128,6 @@ def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[tuple[float, ...], ig.Graph
     node_idx = 1
     while len(stack) > 0:
         parent_node, solved_problem, fixed_vars = stack.pop()
-
-        print(parent_node)
-        for fixed_var in fixed_vars:
-            print(fixed_var)
-        print()
 
         objective = get_objective_value(solved_problem.variables())
         vars = solved_problem.variables()
@@ -140,49 +180,36 @@ def solve_bab_vertex_cover(graph: ig.Graph) -> tuple[tuple[float, ...], ig.Graph
 
     return best_solution, tree    
 
-#%%
+
 def print_solution(vars: tuple[float, ...]):
     print(f'objective = {sum(vars)}')
     for i, var in enumerate(vars):
         print(f'x_{i} = {var}')
 
-#%%
+
 def run_example(gg: ig.Graph, solver_version = SOLVER):
+    """Generates an LP/LIP vertex cover problem from the graph 
+    `gg`, solves it with the given solver and plots its solution.
+
+    Args:
+        gg (ig.Graph): The graph to cover by vertices.
+        solver_version (str, optional): The underlying solver. Defaults to SOLVER (global constant).
+    """    
     solver = generate_vertex_cover_problem(gg, solver_version=solver_version)
     if not solver: 
         return
     solver.Solve()
-    print_solution(tuple(var.solution_value() for var in solver.variables()))
+    solution = tuple(var.solution_value() for var in solver.variables())
+    plot_solved_graph(solution, gg)
 
-#%%
-gg = generate_graph(np.random.default_rng(2023), 7, 0.5)
-run_example(gg)
-ig.plot(gg)
 
-# %%
-gg2 = generate_graph(np.random.default_rng(2023), 8, 0.5)
-run_example(gg2)
-ig.plot(gg2)
-#%%
-solution2, tree2 = solve_bab_vertex_cover(gg2) 
-print_solution(solution2)
-ig.plot(tree2)
-# %%
-gg3 = generate_graph(np.random.default_rng(2023), 9, 0.5)
-ig.plot(gg3)
+def plot_solved_graph(solution: tuple[float, ...], graph: ig.Graph):
+    fig, ax = plt.subplots()
+    color = ['red' if var == 0 else 'blue' for var in solution]
+    ig.plot(graph, vertex_color=color, target=ax)
 
-#%%
-run_example(gg3, 'SCIP')
-solution3, tree3 = solve_bab_vertex_cover(gg3) 
-print_solution(solution3)
-# %%
-gg4 = generate_graph(np.random.default_rng(2023), 14, 0.3)
-ig.plot(gg4)
 
-#%%
-fig, ax = plt.subplots()
-run_example(gg4, 'SCIP')
-solution4, tree4 = solve_bab_vertex_cover(gg4) 
-print_solution(solution4)
-ig.plot(tree4, target=ax, layout=tree4.layout('reingold_tilford'))
-#%%
+def plot_bab_tree(tree: ig.Graph):
+    fig, ax = plt.subplots()
+    ig.plot(tree, target=ax, layout=tree.layout('reingold_tilford'))
+
