@@ -1,14 +1,14 @@
 #%%
 from enum import Enum
-import json
 import math
 import pag
-import warnings
 from typing import Iterable, cast
 import numpy as np
 
 
 def generate_attribution(m: int, n: int):
+    """Given a problem size, generates the matrix of restrictions pertaining to the
+    attribution part of the problem."""
     if n < 0 or m < 0:
         raise ValueError("Sizes must be positive.")
     res = np.eye(n)
@@ -18,6 +18,7 @@ def generate_attribution(m: int, n: int):
 
 
 class Problem:
+    "Just a convenient data structure for the GAP parameters."
     def __init__(self, 
                  objective: Iterable, 
                  knapsack: Iterable, 
@@ -33,24 +34,19 @@ class Problem:
 
     def get_all_problem_parameters(self):
         return self.objective, self.attribution, self.knapsack, self.b, self.m, self.n
-
-
-def load_problem_from_json(filename: str = 'problem.json'):
-    "Deprecated."
-    warnings.warn("The code has been refactored to "\
-                  "comply with another input standard.", DeprecationWarning)
-    with open(filename, 'r') as file:
-        problem = json.loads(file.read())
-        objective = np.array(problem['objective'])
-        attribution = np.array(problem['attribution'])[:, :-1]
-        knapsack = np.array(problem['knapsack'])
-        b = knapsack[:, -1]
-        knapsack = knapsack[:, :-1]
-        n = attribution.shape[0]
-        m = knapsack.shape[0]
-
-        return Problem(objective, knapsack, b, m, n)
-
+    
+    def __str__(self) -> str:
+        problem_str = "Problem:\n"
+        problem_str += f"Objective: {self.objective}\n"
+        problem_str += f"Attribution:\n{self.attribution}\n"
+        problem_str += f"Knapsack:\n{self.knapsack}\n"
+        problem_str += f"b: {self.b}\n"
+        problem_str += f"m: {self.m}\n"
+        problem_str += f"n: {self.n}\n"
+        return problem_str
+    
+    def __repr__(self) -> str:
+        return str(self)
 
 def solve_relaxation(
     u: np.ndarray,
@@ -61,24 +57,27 @@ def solve_relaxation(
     m: int,
     n: int
 ) -> tuple[np.ndarray, float]:
-    new_obj = u @ knapsack + objective
+    new_obj = u @ knapsack + objective 
 
+    # the line below will create a matrix of indices to reshape the `new_obj`
+    # array back into a matrix, so we can extract the cost relative to each variable
     restrictions = [np.where(row == 1)[0] for row in attribution]
 
     obj_reshaped = new_obj[restrictions]
     solution = np.zeros(m * n)
 
     for row, indices in zip(obj_reshaped, restrictions):
-        idx = row.argmin()
-        solution[indices[idx]] = 1
+        idx = row.argmin() # we're choosing index of the variable with lowest cost
+        solution[indices[idx]] = 1 # now we're using the index to select the variable
     
-    return solution, cast(float, solution @ new_obj - u @ b)
+    # `cast` is used only to satisfy the typechecker
+    return solution, cast(float, solution @ new_obj - u @ b) 
 
 class CheckResult(Enum):
-    ViolatesAttribution = 0
-    ViolatesKnapsack = 1
-    SubOptimal = 2
-    Optimal = 3
+    VIOLATES_ATTRIBUTION_RESTRICTIONS = 0
+    VIOLATES_KNAPSACK_RESTRICTIONS = 1
+    SUBOPTIMAL_SOLUTION = 2
+    OPTIMAL_SOLUTION = 3
 
 def check_optimality(
     solution: np.ndarray,
@@ -89,17 +88,17 @@ def check_optimality(
     b: np.ndarray
 ) -> CheckResult:
     for row in attribution:
-        if solution @ row != 1:
-            return CheckResult.ViolatesAttribution
+        if not math.isclose(solution @ row, 1.):
+            return CheckResult.VIOLATES_ATTRIBUTION_RESTRICTIONS
         
     for row, bi in zip(knapsack, b):
         if solution @ row > bi:
-            return CheckResult.ViolatesKnapsack
+            return CheckResult.VIOLATES_KNAPSACK_RESTRICTIONS
         
     if math.isclose(objective @ solution, value):
-        return CheckResult.Optimal
+        return CheckResult.OPTIMAL_SOLUTION
 
-    return CheckResult.SubOptimal
+    return CheckResult.SUBOPTIMAL_SOLUTION
 
 
 def get_next_u(
@@ -160,7 +159,7 @@ def solve_problem(
 
         if verbose: print(f'{solution=}\n{value=}')
 
-        if value >= previous_value:
+        if value >= previous_value: # wrong?
             iterations_without_improvement += 1
 
         if iterations_without_improvement > max_iterations_without_improvement:
@@ -176,10 +175,10 @@ def solve_problem(
             b
         )
 
-        if verification == CheckResult.Optimal:
+        if verification == CheckResult.OPTIMAL_SOLUTION:
             viable = True
             break
-        if verification == CheckResult.SubOptimal:
+        if verification == CheckResult.SUBOPTIMAL_SOLUTION:
             viable = True
             if value < previous_value:
                 z_bar = value
@@ -200,20 +199,16 @@ def solve_problem(
 
     return solution, value, viable
 
-def generate_and_solve_solver_problem(problem: Problem):
-    objective, attribution, knapsack, b, m, n = problem.get_all_problem_parameters()
-    objective = objective.reshape((m, n))
-    pag.atribuicao_generalizado(m, n, knapsack, objective, b)
 
 #%%
 if __name__ == '__main__':
-    # problem = load_problem_from_json('atividade4/problem.json')
-    m, n, knapsack, objective, b, solver_solution = pag.main()
-
-    solver_solution = np.array(solver_solution)
+    m, n, knapsack, b, objective, solver_solution = pag.main(6, 15)
 
     # our routine works with a flattened objective (costs) vector (i.e. not a matrix)
     objective = np.array(objective).flatten()
+
+    solver_solution = np.array(solver_solution).flatten()
+    solver_objective_value = cast(float, solver_solution @ objective)
 
     # our routine demands a filled out matrix for the knapsack restrictions
     for j in range(m):
@@ -225,14 +220,13 @@ if __name__ == '__main__':
 
     problem = Problem(objective, knapsack, b, m, n)
     solution, value, viable = solve_problem(
-        problem,
-        np.zeros(m),
-        2,
-        15,
-        20,
-        5
+        problem = problem,
+        initial_u = np.zeros(m),
+        lamda = 2,
+        z_bar = solver_objective_value * 1.5,
+        max_iterations = 200,
+        max_iterations_without_improvement = 10
     )
-    print(f'{solution=} {value=} {viable=}')
+    print(f'{solution=}\n{value=}\n{viable=}')
     print(f'Default solver solution: {solver_solution}\n' \
-          f'Default solution value: {solver_solution @ objective}')
-    # generate_and_solve_solver_problem(problem)
+          f'Default solution value: {solver_objective_value}')

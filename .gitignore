@@ -5,9 +5,12 @@ test*
 install
 entrega
 *pycache*
+*ativ4_OLD*
+atividade4/**.pdf
 
 *.aux
 *.fls
 *.log
 *.gz
 *.fdb_latexmk
+*.zip

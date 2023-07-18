@@ -13,7 +13,7 @@ def atribuicao_generalizado(m, n, A, c, b):
     if not solver:
         return
 
-    solver.EnableOutput()
+    # solver.EnableOutput()
     
     # Criar variaveis
     x = [[solver.IntVar(0, 1, f'x{i}_{j}') for j in range(n)] for i in range(m)]
@@ -43,7 +43,7 @@ def atribuicao_generalizado(m, n, A, c, b):
     print('Tempo de solucao: %f ms' % solver.wall_time())
 
     if status == pywraplp.Solver.OPTIMAL:
-        print('\nValor da funcao objetivo =', solver.Objective().Value())
+        # print('\nValor da funcao objetivo =', solver.Objective().Value())
         #print('Solucao:')
         sol: list[list[float]] = []
         for i in range(m):
@@ -57,17 +57,25 @@ def atribuicao_generalizado(m, n, A, c, b):
         print('O problema nao possui solucao.')
         return None
 
-def main():
+def main(m=25,n=200):
     rd.seed(744)
-
-    # Dimensoes do problema
-    m = 25
-    n = 200
     
     # Dados do problema:
     A = [[rd.randint(1,100)  for j in range(n)] for i in range(m)]
     c = [[rd.randint(1,100) for j in range(n)] for i in range(m)]
     b = [0.5*sum([A[i][rd.randint(0,n-1)] + A[i][rd.randint(0,n-1)]]) for i in range(m)]
+
+    # Exemplo do profesor:
+    # m = 2
+    # n = 3
+    
+    # A = [[2, 5, 7],
+    #     [4, 4, 1]]
+
+    # c = [[3, 6, 2],
+    #     [4, 1, 3]]
+    
+    # b = [8, 5]
 
     # Resolucao do modelo padrao para o PAG
     x = atribuicao_generalizado(m, n, A, c, b)
